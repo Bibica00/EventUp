@@ -1,19 +1,18 @@
 <?php
-require_once "funct.php"; // Conexão com $pdo
+require_once "funct.php"; 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-// Redireciona se não estiver logado
 if (!isset($_SESSION['email'])) {
     header("Location: login.php");
     exit();
 }
 
+$emailLogado = $_SESSION['email'];
 $mensagem = "";
 
-// Verifica idade do usuário
 try {
     $stmt_usuario = $pdo->prepare("SELECT data_nascimento FROM login WHERE email = :email");
-    $stmt_usuario->execute([':email' => $_SESSION['email']]);
+    $stmt_usuario->execute([':email' => $emailLogado]);
     $usuario = $stmt_usuario->fetch(PDO::FETCH_ASSOC);
 
     $data_nascimento = $usuario['data_nascimento'] ?? null;
@@ -22,7 +21,6 @@ try {
     $mensagem = "<p class='erro'>Erro ao verificar usuário: " . htmlspecialchars($e->getMessage()) . "</p>";
 }
 
-// Cadastrar evento
 if (isset($_POST['cadastrar'])) {
     if ($idade < 18) {
         $mensagem = "<p class='erro'>Promotor menor de 18 anos não pode cadastrar evento.</p>";
@@ -43,7 +41,6 @@ if (isset($_POST['cadastrar'])) {
             $estado = trim($_POST['estado']);
             $telefone = !empty($_POST['telefone']) ? trim($_POST['telefone']) : null;
 
-            // Upload de imagem opcional
             $imagem = null;
             if (!empty($_FILES['imagem']['name'])) {
                 $pasta = "uploads/";
@@ -61,9 +58,9 @@ if (isset($_POST['cadastrar'])) {
 
             $stmt = $pdo->prepare("
                 INSERT INTO formulario 
-                (nome, categoria, descricao, faixa_etaria, data_evento, hora_inicio, hora_fim, pago, link_ingresso, valor_ingresso, localizacao, cidade, estado, telefone, imagem)
+                (nome, categoria, descricao, faixa_etaria, data_evento, hora_inicio, hora_fim, pago, link_ingresso, valor_ingresso, localizacao, cidade, estado, telefone, imagem, usuario)
                 VALUES 
-                (:nome, :categoria, :descricao, :faixa_etaria, :data_evento, :hora_inicio, :hora_fim, :pago, :link_ingresso, :valor_ingresso, :localizacao, :cidade, :estado, :telefone, :imagem)
+                (:nome, :categoria, :descricao, :faixa_etaria, :data_evento, :hora_inicio, :hora_fim, :pago, :link_ingresso, :valor_ingresso, :localizacao, :cidade, :estado, :telefone, :imagem, :usuario)
             ");
 
             $sucesso = $stmt->execute([
@@ -81,13 +78,14 @@ if (isset($_POST['cadastrar'])) {
                 ':cidade' => $cidade,
                 ':estado' => $estado,
                 ':telefone' => $telefone,
-                ':imagem' => $imagem
+                ':imagem' => $imagem,
+                ':usuario' => $emailLogado
             ]);
 
             if ($sucesso) {
                 echo "<script>
                     alert('Evento cadastrado com sucesso!');
-                    window.location.href='eventos.php';
+                    window.location.href='evento.php';
                 </script>";
                 exit();
             } else {
@@ -111,10 +109,8 @@ if (isset($_POST['cadastrar'])) {
 </head>
 <body>
 
-<!-- INCLUSÃO DA NAVBAR -->
 <?php include 'navbar.php'; ?>
 
-<!-- CONTEÚDO PRINCIPAL -->
 <div class="container-cadastro">
     <h2>Cadastro de Evento</h2>
     <?= $mensagem ?>

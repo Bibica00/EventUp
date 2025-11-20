@@ -11,7 +11,6 @@ $emailLogado = $_SESSION['email'];
 $mensagem = "";
 
 if (isset($_POST['excluir'])) {
-
     $id_evento = $_POST['id_evento'];
     $stmt_check = $pdo->prepare("SELECT imagem FROM formulario WHERE id = :id AND usuario = :usuario");
     $stmt_check->execute([
@@ -48,7 +47,6 @@ if (isset($_POST['editar'])) {
     if (!$evento_old) {
         $mensagem = "<p class='erro'>Você não tem permissão para atualizar este evento.</p>";
     } else {
-
         $nome = trim($_POST['nome']);
         $categoria = trim($_POST['categoria']);
         $descricao = trim($_POST['descricao']);
@@ -75,7 +73,6 @@ if (isset($_POST['editar'])) {
             $tiposPermitidos = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
             if (in_array($tipoArquivo, $tiposPermitidos)) {
-
                 move_uploaded_file($_FILES["imagem"]["tmp_name"], $caminhoCompleto);
                 $imagem = $caminhoCompleto;
 
@@ -131,10 +128,10 @@ if (isset($_POST['editar'])) {
         $mensagem = "<p class='sucesso'>Evento atualizado com sucesso!</p>";
     }
 }
+
 $stmt = $pdo->prepare("SELECT * FROM formulario WHERE usuario = :usuario ORDER BY data_evento DESC");
 $stmt->execute([':usuario' => $emailLogado]);
 $eventos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -251,13 +248,27 @@ $eventos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
 <script>
-$(document).ready(function(){
-    $(".evento-item").on("click", function(){
-        $(".evento-edicao").slideUp();
-        $(this).next(".evento-edicao").slideToggle();
+document.addEventListener('DOMContentLoaded', function() {
+    const eventoItems = document.querySelectorAll('.evento-item');
+    
+    eventoItems.forEach(function(item) {
+        item.addEventListener('click', function() {
+            const edicao = this.nextElementSibling;
+            const todosEdicoes = document.querySelectorAll('.evento-edicao');
+            
+            todosEdicoes.forEach(function(ed) {
+                if (ed !== edicao) {
+                    ed.style.display = 'none';
+                }
+            });
+            
+            if (edicao.style.display === 'none' || edicao.style.display === '') {
+                edicao.style.display = 'block';
+            } else {
+                edicao.style.display = 'none';
+            }
+        });
     });
 });
 </script>
@@ -266,3 +277,5 @@ $(document).ready(function(){
 
 </body>
 </html>
+
+

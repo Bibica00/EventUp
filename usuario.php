@@ -127,13 +127,24 @@ a:hover { color: #ff4a67; }
       <p><?= htmlspecialchars($evento['descricao']) ?></p>
       <div class="detalhes-evento">
         <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
+        <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
         <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
         <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
         <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
+        
+        <?php if(!empty($evento['telefone'])): ?>
+          <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
+        <?php endif; ?>
+        
+        <?php if(!empty($evento['link_ingresso'])): ?>
+          <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
+            Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.htmlspecialchars($evento['valor_ingresso']); ?>
+          </a>
+        <?php endif; ?>
       </div>
       <div class="botoes-acoes">
         <button class="icon-btn curtir-btn" id="btn-curtir-<?= $idEvento ?>" data-id="<?= $idEvento ?>"><?= $curtiu ? '❤️' : '🤍' ?></button>
-        <button class="icon-btn" onclick="navigator.clipboard.writeText('<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>'); alert('Link copiado!');">↗️</button>
+        <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>">↗️</button>
       </div>
     </div>
   </div>
@@ -145,30 +156,60 @@ a:hover { color: #ff4a67; }
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-$(".curtir-btn").on("click", function() {
-  let id_evento = $(this).data("id");
-  let botao = $(this);
-  $.ajax({
-    url: "curtir_ajax.php",
-    type: "POST",
-    data: { id_evento: id_evento },
-    dataType: "json",
-    success: function(res) {
-      if (res.status === "curtido") botao.text("❤️");
-      else if (res.status === "descurtido") botao.text("🤍");
-      else alert(res.mensagem || "Erro ao curtir.");
-    },
-    error: function(xhr) {
-      console.error(xhr.responseText);
-      alert("Erro ao processar curtida.");
-    }
+$(function(){
+  $(".curtir-btn").on("click", function(e) {
+    e.stopPropagation(); 
+    
+    let id_evento = $(this).data("id");
+    let botao = $(this);
+    
+    $.ajax({
+      url: "curtir_ajax.php",
+      type: "POST",
+      data: { id_evento: id_evento },
+      dataType: "json",
+      success: function(res) {
+        if (res.status === "curtido") {
+          botao.text("❤️");
+        } else if (res.status === "descurtido") {
+          botao.text("🤍");
+        } else {
+          alert(res.mensagem || "Erro ao curtir.");
+        }
+      },
+      error: function(xhr) {
+        console.error(xhr.responseText);
+        alert("Erro ao processar curtida.");
+      }
+    });
   });
-});
 
-$(".card-container").on("click", function(e) {
-  if ($(e.target).closest(".botoes-acoes").length) return;
-  $(".detalhes-evento").not($(this).find(".detalhes-evento")).slideUp();
-  $(this).find(".detalhes-evento").slideToggle();
+  $(".card-container").on("click", function(e) {
+    if ($(e.target).closest(".botoes-acoes").length) {
+      return;
+    }
+
+    $(".detalhes-evento").not($(this).find(".detalhes-evento")).slideUp();
+    $(this).find(".detalhes-evento").slideToggle();
+  });
+
+  $(".compartilhar-btn").on("click", function(e) {
+    e.stopPropagation(); 
+    const link = $(this).data('link');
+    
+    navigator.clipboard.writeText(link).then(function() {
+      alert('Link copiado!');
+    }).catch(function(err) {
+      console.error('Erro ao copiar link: ', err);
+      const tempInput = document.createElement('input');
+      tempInput.value = link;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      alert('Link copiado!');
+    });
+  });
 });
 </script>
 

@@ -106,9 +106,20 @@ a{text-decoration:none; transition:0.3s;} a:hover{color:#ff4a67;}
       <p><?= htmlspecialchars($evento['descricao']) ?></p>
       <div class="detalhes-evento">
         <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
+        <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
         <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
         <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
         <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
+        
+        <?php if(!empty($evento['telefone'])): ?>
+          <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
+        <?php endif; ?>
+        
+        <?php if(!empty($evento['link_ingresso'])): ?>
+          <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
+            Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.htmlspecialchars($evento['valor_ingresso']); ?>
+          </a>
+        <?php endif; ?>
       </div>
       <div class="botoes-acoes">
         <button class="icon-btn curtir-btn" id="btn-curtir-<?= $idEvento ?>" data-id="<?= $idEvento ?>"><?= $curtiu ? '❤️' : '🤍' ?></button>
@@ -151,4 +162,5 @@ $(".card-container").on("click", function(e){
 
 </body>
 </html>
+
 

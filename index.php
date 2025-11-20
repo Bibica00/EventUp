@@ -30,6 +30,13 @@ $cidades = $pdo->query("SELECT DISTINCT cidade, estado FROM formulario")->fetchA
 $categorias = $pdo->query("SELECT DISTINCT categoria FROM formulario")->fetchAll(PDO::FETCH_COLUMN);
 $datas = $pdo->query("SELECT DISTINCT data_evento FROM formulario")->fetchAll(PDO::FETCH_COLUMN);
 $horas = $pdo->query("SELECT DISTINCT hora_inicio FROM formulario")->fetchAll(PDO::FETCH_COLUMN);
+
+// Função para verificar se usuário curtiu o evento
+function usuarioCurtiuPDO($pdo, $id_evento, $usuario, $tipoUsuario = 'promotor') {
+    $stmt = $pdo->prepare("SELECT * FROM curtidas WHERE id_evento = :id_evento AND usuario = :usuario AND tipo_usuario = :tipo");
+    $stmt->execute([':id_evento' => $id_evento, ':usuario' => $usuario, ':tipo' => $tipoUsuario]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+}
 ?>
 
 <!DOCTYPE html>
@@ -113,17 +120,6 @@ img { max-width: 100%; height: auto; }
   flex-direction: column;
   position: relative;
   cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.card-container:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-}
-
-.card-container.expanded {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
 
 .card-container img {
@@ -137,24 +133,12 @@ img { max-width: 100%; height: auto; }
   text-align: center;
 }
 
-.info-basica {
-  display: block;
-}
-
-.info-completa {
+.detalhes-evento {
   display: none;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #eee;
   text-align: left;
-}
-
-.card-container.expanded .info-basica {
-  display: block;
-}
-
-.card-container.expanded .info-completa {
-  display: block;
 }
 
 .botoes-acoes {
@@ -170,7 +154,6 @@ img { max-width: 100%; height: auto; }
   border: none;
   cursor: pointer;
   font-size: 20px;
-  transition: transform 0.2s ease;
 }
 .icon-btn:hover { transform: scale(1.2); }
 
@@ -303,21 +286,16 @@ img { max-width: 100%; height: auto; }
 <?php foreach($eventosFiltrados as $evento):
 $idEvento = $evento['id'];
 $imagemEvento = !empty($evento['imagem']) ? $evento['imagem'] : 'assets/img/speaker/default.jpg';
+$curtiu = usuarioCurtiuPDO($pdo, $idEvento, $emailUsuario);
 ?>
-<div class="card-container" data-event-id="<?= $idEvento ?>">
+<div class="card-container" id="evento<?= $idEvento ?>">
   <div class="data-quadro"><?= date('d/m/Y', strtotime($evento['data_evento'])) ?></div>
   <img src="<?= htmlspecialchars($imagemEvento) ?>" alt="Evento">
   <div class="card-body">
-    <div class="info-basica">
-      <h5><?= htmlspecialchars($evento['nome']) ?></h5>
-      <p><?= htmlspecialchars($evento['descricao']) ?></p>
-      
-      <div class="botoes-acoes">
-        <a href="login.php" class="icon-btn">🤍</a>
-        <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>">↗️</button>
-      </div>
-    </div>
-    <div class="info-completa">
+    <h5><?= htmlspecialchars($evento['nome']) ?></h5>
+    <p><?= htmlspecialchars($evento['descricao']) ?></p>
+    
+    <div class="detalhes-evento">
       <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
       <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
       <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
@@ -334,7 +312,11 @@ $imagemEvento = !empty($evento['imagem']) ? $evento['imagem'] : 'assets/img/spea
         </a>
       <?php endif; ?>
     </div>
-    
+
+    <div class="botoes-acoes">
+      <button class="icon-btn curtir-btn" id="btn-curtir-<?= $idEvento ?>" data-id="<?= $idEvento ?>"><?= $curtiu ? '❤️' : '🤍' ?></button>
+      <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>">↗️</button>
+    </div>
   </div>
 </div>
 <?php endforeach; else: ?>
@@ -347,26 +329,43 @@ $imagemEvento = !empty($evento['imagem']) ? $evento['imagem'] : 'assets/img/spea
 
 <script>
 $(function(){
-  function fecharTodosCards() {
-    $('.card-container.expanded').removeClass('expanded');
-  }
-  $('.card-container').on('click', function(e) {
-    if ($(e.target).hasClass('icon-btn') || $(e.target).closest('.icon-btn').length) {
+  $(".curtir-btn").on("click", function(e) {
+    e.stopPropagation(); 
+    
+    let id_evento = $(this).data("id");
+    let botao = $(this);
+    
+    $.ajax({
+      url: "curtir_ajax.php",
+      type: "POST",
+      data: { id_evento: id_evento },
+      dataType: "json",
+      success: function(res) {
+        if (res.status === "curtido") {
+          botao.text("❤️");
+        } else if (res.status === "descurtido") {
+          botao.text("🤍");
+        } else {
+          alert(res.mensagem || "Erro ao curtir.");
+        }
+      },
+      error: function(xhr) {
+        console.error(xhr.responseText);
+        alert("Erro ao processar curtida.");
+      }
+    });
+  });
+  $(".card-container").on("click", function(e) {
+    if ($(e.target).closest(".botoes-acoes").length) {
       return;
     }
-
-    const $card = $(this);
-    if ($card.hasClass('expanded')) {
-      $card.removeClass('expanded');
-    } else {
-      fecharTodosCards();
-      $card.addClass('expanded');
-    }
+    $(".detalhes-evento").not($(this).find(".detalhes-evento")).slideUp();
+    $(this).find(".detalhes-evento").slideToggle();
   });
-
-  $('.compartilhar-btn').on('click', function(e) {
+  $(".compartilhar-btn").on("click", function(e) {
     e.stopPropagation(); 
     const link = $(this).data('link');
+    
     navigator.clipboard.writeText(link).then(function() {
       alert('Link copiado!');
     }).catch(function(err) {
@@ -391,6 +390,5 @@ $(function(){
 
 });
 </script>
-
 </body>
 </html>

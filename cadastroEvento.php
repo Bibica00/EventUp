@@ -85,7 +85,7 @@ if (isset($_POST['cadastrar'])) {
             if ($sucesso) {
                 echo "<script>
                     alert('Evento cadastrado com sucesso!');
-                    window.location.href='evento.php';
+                    window.location.href='eventos.php';
                 </script>";
                 exit();
             } else {
@@ -208,3 +208,4 @@ window.onload = toggleLink;
 
 </body>
 </html>
+

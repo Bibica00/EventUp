@@ -112,6 +112,18 @@ img { max-width: 100%; height: auto; }
   display: flex;
   flex-direction: column;
   position: relative;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.card-container.expanded {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
 
 .card-container img {
@@ -123,6 +135,26 @@ img { max-width: 100%; height: auto; }
 .card-body {
   padding: 15px;
   text-align: center;
+}
+
+.info-basica {
+  display: block;
+}
+
+.info-completa {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  text-align: left;
+}
+
+.card-container.expanded .info-basica {
+  display: block;
+}
+
+.card-container.expanded .info-completa {
+  display: block;
 }
 
 .botoes-acoes {
@@ -138,6 +170,7 @@ img { max-width: 100%; height: auto; }
   border: none;
   cursor: pointer;
   font-size: 20px;
+  transition: transform 0.2s ease;
 }
 .icon-btn:hover { transform: scale(1.2); }
 
@@ -271,32 +304,37 @@ img { max-width: 100%; height: auto; }
 $idEvento = $evento['id'];
 $imagemEvento = !empty($evento['imagem']) ? $evento['imagem'] : 'assets/img/speaker/default.jpg';
 ?>
-<div class="card-container">
+<div class="card-container" data-event-id="<?= $idEvento ?>">
   <div class="data-quadro"><?= date('d/m/Y', strtotime($evento['data_evento'])) ?></div>
   <img src="<?= htmlspecialchars($imagemEvento) ?>" alt="Evento">
   <div class="card-body">
-    <h5><?= htmlspecialchars($evento['nome']) ?></h5>
-    <p><?= htmlspecialchars($evento['descricao']) ?></p>
-    <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
-    <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
-    <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
-    <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
-    <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
-
-    <?php if(!empty($evento['telefone'])): ?>
-      <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
-    <?php endif; ?>
-
-    <?php if(!empty($evento['link_ingresso'])): ?>
-      <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
-        Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.$evento['valor_ingresso']; ?>
-      </a>
-    <?php endif; ?>
-
-    <div class="botoes-acoes">
-      <a href="login.php" class="icon-btn">🤍</a>
-      <button class="icon-btn" onclick="navigator.clipboard.writeText('<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>'); alert('Link copiado!');">↗️</button>
+    <div class="info-basica">
+      <h5><?= htmlspecialchars($evento['nome']) ?></h5>
+      <p><?= htmlspecialchars($evento['descricao']) ?></p>
+      
+      <div class="botoes-acoes">
+        <a href="login.php" class="icon-btn">🤍</a>
+        <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>">↗️</button>
+      </div>
     </div>
+    <div class="info-completa">
+      <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
+      <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
+      <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
+      <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
+      <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
+
+      <?php if(!empty($evento['telefone'])): ?>
+        <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
+      <?php endif; ?>
+
+      <?php if(!empty($evento['link_ingresso'])): ?>
+        <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
+          Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.$evento['valor_ingresso']; ?>
+        </a>
+      <?php endif; ?>
+    </div>
+    
   </div>
 </div>
 <?php endforeach; else: ?>
@@ -309,12 +347,43 @@ $imagemEvento = !empty($evento['imagem']) ? $evento['imagem'] : 'assets/img/spea
 
 <script>
 $(function(){
+  function fecharTodosCards() {
+    $('.card-container.expanded').removeClass('expanded');
+  }
+  $('.card-container').on('click', function(e) {
+    if ($(e.target).hasClass('icon-btn') || $(e.target).closest('.icon-btn').length) {
+      return;
+    }
 
+    const $card = $(this);
+    if ($card.hasClass('expanded')) {
+      $card.removeClass('expanded');
+    } else {
+      fecharTodosCards();
+      $card.addClass('expanded');
+    }
+  });
+
+  $('.compartilhar-btn').on('click', function(e) {
+    e.stopPropagation(); 
+    const link = $(this).data('link');
+    navigator.clipboard.writeText(link).then(function() {
+      alert('Link copiado!');
+    }).catch(function(err) {
+      console.error('Erro ao copiar link: ', err);
+      const tempInput = document.createElement('input');
+      tempInput.value = link;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      alert('Link copiado!');
+    });
+  });
   $(".limpar-filtros").on("click", function(e){
     e.preventDefault();
     window.location.href = window.location.pathname;
   });
-
   $(".limpar-pesquisa").on("click", function(){
     $("input[name='pesquisa']").val("");
     $(".form-busca").submit();

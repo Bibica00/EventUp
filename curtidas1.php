@@ -7,70 +7,27 @@ if (!isset($_SESSION['email'])) {
     exit();
 }
 
-if (!isset($pdo)) {
-    try {
-        $pdo = new PDO("mysql:host=localhost;dbname=seu_banco", "usuario", "senha");
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    } catch(PDOException $e) {
-        error_log("Erro de conexão: " . $e->getMessage());
-        $pdo = null;
-    }
-}
-
-$_SESSION['tipo_usuario'] = 'promotor';
 $emailUsuario = $_SESSION['email'];
 
-if ($pdo) {
-    try {
-        $cidades = $pdo->query("SELECT DISTINCT cidade, estado FROM formulario ORDER BY cidade")->fetchAll(PDO::FETCH_ASSOC);
-        $categorias = $pdo->query("SELECT DISTINCT categoria FROM formulario ORDER BY categoria")->fetchAll(PDO::FETCH_COLUMN);
-        $datas = $pdo->query("SELECT DISTINCT data_evento FROM formulario ORDER BY data_evento")->fetchAll(PDO::FETCH_COLUMN);
-        $horas = $pdo->query("SELECT DISTINCT hora_inicio FROM formulario ORDER BY hora_inicio")->fetchAll(PDO::FETCH_COLUMN);
-    } catch(PDOException $e) {
-        error_log("Erro nas queries: " . $e->getMessage());
-        $cidades = $categorias = $datas = $horas = [];
-    }
-} else {
-    $cidades = $categorias = $datas = $horas = [];
-}
-
-$sql = "SELECT * FROM formulario WHERE data_evento >= CURRENT_DATE";
-$params = [];
-
-if(!empty($_GET['cidade'])) { 
-    $sql .= " AND cidade = :cidade"; 
-    $params[':cidade'] = $_GET['cidade']; 
-}
-if(!empty($_GET['estado'])) { 
-    $sql .= " AND estado = :estado"; 
-    $params[':estado'] = $_GET['estado']; 
-}
-if(!empty($_GET['categoria'])) { 
-    $sql .= " AND categoria = :categoria"; 
-    $params[':categoria'] = $_GET['categoria']; 
-}
-if(!empty($_GET['data'])) { 
-    $sql .= " AND data_evento = :data"; 
-    $params[':data'] = $_GET['data']; 
-}
-if(!empty($_GET['hora'])) { 
-    $sql .= " AND hora_inicio = :hora"; 
-    $params[':hora'] = $_GET['hora']; 
-}
-if(!empty($_GET['pesquisa'])) { 
-    $sql .= " AND (nome LIKE :pesquisa OR descricao LIKE :pesquisa)"; 
-    $params[':pesquisa'] = '%'.$_GET['pesquisa'].'%'; 
-}
-
-$sql .= " ORDER BY data_evento ASC, hora_inicio ASC";
+$sql = "SELECT f.* 
+        FROM formulario f 
+        JOIN curtidas c ON f.id = c.id_evento 
+        WHERE c.usuario = :usuario 
+        AND f.data_evento >= CURRENT_DATE 
+        ORDER BY f.data_evento ASC, f.hora_inicio ASC";
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute([':usuario' => $emailUsuario]);
 $eventos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-function usuarioCurtiuPDO($pdo, $id_evento, $usuario, $tipoUsuario = 'promotor') {
-    $stmt = $pdo->prepare("SELECT * FROM curtidas WHERE id_evento = :id_evento AND usuario = :usuario AND tipo_usuario = :tipo");
-    $stmt->execute([':id_evento' => $id_evento, ':usuario' => $usuario, ':tipo' => $tipoUsuario]);
+$cidades = $pdo->query("SELECT DISTINCT cidade, estado FROM formulario ORDER BY cidade")->fetchAll(PDO::FETCH_ASSOC);
+$categorias = $pdo->query("SELECT DISTINCT categoria FROM formulario ORDER BY categoria")->fetchAll(PDO::FETCH_COLUMN);
+$datas = $pdo->query("SELECT DISTINCT data_evento FROM formulario ORDER BY data_evento")->fetchAll(PDO::FETCH_COLUMN);
+$horas = $pdo->query("SELECT DISTINCT hora_inicio FROM formulario ORDER BY hora_inicio")->fetchAll(PDO::FETCH_COLUMN);
+
+function usuarioCurtiuPDO($pdo, $id_evento, $usuario) {
+    $stmt = $pdo->prepare("SELECT * FROM curtidas WHERE id_evento = :id_evento AND usuario = :usuario");
+    $stmt->execute([':id_evento' => $id_evento, ':usuario' => $usuario]);
     return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
 }
 ?>
@@ -80,7 +37,7 @@ function usuarioCurtiuPDO($pdo, $id_evento, $usuario, $tipoUsuario = 'promotor')
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eventos - EventUP</title>
+<title>Eventos Curtidos - EventUP</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="navbar.css">
 <style>
@@ -109,7 +66,7 @@ a:hover { color: #ff4a67; }
 <?php include "navbar1.php"; ?>
 
 <div class="intro-text">
-  <p>Usuário</p>
+  <p>Eventos Curtidos</p>
 </div>
 
 <div class="grid-eventos" id="eventos">
@@ -127,25 +84,37 @@ a:hover { color: #ff4a67; }
       <p><?= htmlspecialchars($evento['descricao']) ?></p>
       <div class="detalhes-evento">
         <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
+        <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
         <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
         <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
         <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
+        
+        <?php if(!empty($evento['telefone'])): ?>
+          <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
+        <?php endif; ?>
+        
+        <?php if(!empty($evento['link_ingresso'])): ?>
+          <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
+            Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.htmlspecialchars($evento['valor_ingresso']); ?>
+          </a>
+        <?php endif; ?>
       </div>
       <div class="botoes-acoes">
         <button class="icon-btn curtir-btn" id="btn-curtir-<?= $idEvento ?>" data-id="<?= $idEvento ?>"><?= $curtiu ? '❤️' : '🤍' ?></button>
-        <button class="icon-btn" onclick="navigator.clipboard.writeText('<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>'); alert('Link copiado!');">↗️</button>
+        <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $idEvento ?>">↗️</button>
       </div>
     </div>
   </div>
   <?php endforeach; ?>
 <?php else: ?>
-  <p class="text-center">Nenhum evento encontrado.</p>
+  <p class="text-center">Nenhum evento curtido.</p>
 <?php endif; ?>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-$(".curtir-btn").on("click", function() {
+$(".curtir-btn").on("click", function(e) {
+  e.stopPropagation();
   let id_evento = $(this).data("id");
   let botao = $(this);
   $.ajax({
@@ -155,7 +124,15 @@ $(".curtir-btn").on("click", function() {
     dataType: "json",
     success: function(res) {
       if (res.status === "curtido") botao.text("❤️");
-      else if (res.status === "descurtido") botao.text("🤍");
+      else if (res.status === "descurtido") {
+        botao.text("🤍");
+        botao.closest('.card-container').fadeOut(300, function() {
+          $(this).remove();
+          if($('.card-container').length === 0) {
+            $('.grid-eventos').html('<p class="text-center">Nenhum evento curtido.</p>');
+          }
+        });
+      }
       else alert(res.mensagem || "Erro ao curtir.");
     },
     error: function(xhr) {
@@ -169,6 +146,22 @@ $(".card-container").on("click", function(e) {
   if ($(e.target).closest(".botoes-acoes").length) return;
   $(".detalhes-evento").not($(this).find(".detalhes-evento")).slideUp();
   $(this).find(".detalhes-evento").slideToggle();
+});
+
+$(".compartilhar-btn").on("click", function(e) {
+  e.stopPropagation();
+  const link = $(this).data('link');
+  navigator.clipboard.writeText(link).then(function() {
+    alert('Link copiado!');
+  }).catch(function(err) {
+    const tempInput = document.createElement('input');
+    tempInput.value = link;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    alert('Link copiado!');
+  });
 });
 </script>
 

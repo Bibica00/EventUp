@@ -68,15 +68,29 @@ body { margin:0; font-family:"Montserrat",sans-serif; background:#f4f8fa; color:
 
         <div class="detalhes-evento">
           <p><strong>Categoria:</strong> <?= htmlspecialchars($evento['categoria']) ?></p>
+          <p><strong>Faixa etária:</strong> <?= htmlspecialchars($evento['faixa_etaria']) ?></p>
           <p><strong>Horário:</strong> <?= date('H:i', strtotime($evento['hora_inicio'])) ?> - <?= date('H:i', strtotime($evento['hora_fim'])) ?></p>
           <p><strong>Localização:</strong> <?= htmlspecialchars($evento['localizacao']) ?></p>
           <p><?= htmlspecialchars($evento['cidade'].'-'.$evento['estado']) ?></p>
+          
+          <?php if(!empty($evento['telefone'])): ?>
+            <p><strong>Telefone:</strong> <?= htmlspecialchars($evento['telefone']) ?></p>
+          <?php endif; ?>
+          
+          <?php if(!empty($evento['link_ingresso'])): ?>
+            <a href="<?= htmlspecialchars($evento['link_ingresso']) ?>" target="_blank" class="btn-ingresso">
+              Comprar Ingresso <?php if(!empty($evento['valor_ingresso'])) echo 'R$ '.htmlspecialchars($evento['valor_ingresso']); ?>
+            </a>
+          <?php endif; ?>
         </div>
 
-        <form method="post" action="eventos.php" class="botoes-acoes">
-          <input type="hidden" name="id_evento" value="<?= $evento['id'] ?>">
-          <button type="submit" name="descurtir" class="icon-btn">❤️</button>
-        </form>
+        <div class="botoes-acoes">
+          <form method="post" action="eventos.php">
+            <input type="hidden" name="id_evento" value="<?= $evento['id'] ?>">
+            <button type="submit" name="descurtir" class="icon-btn">❤️</button>
+          </form>
+          <button class="icon-btn compartilhar-btn" data-link="<?= 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '#evento' . $evento['id'] ?>">↗️</button>
+        </div>
       </div>
     </div>
   <?php endforeach; ?>
@@ -89,11 +103,28 @@ body { margin:0; font-family:"Montserrat",sans-serif; background:#f4f8fa; color:
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(".card-container").on("click", function(e) {
-    if ($(e.target).closest("form").length) return;
+    if ($(e.target).closest(".botoes-acoes").length) return;
     $(".detalhes-evento").not($(this).find(".detalhes-evento")).slideUp();
     $(this).find(".detalhes-evento").slideToggle();
+});
+
+$(".compartilhar-btn").on("click", function(e) {
+    e.stopPropagation();
+    const link = $(this).data('link');
+    navigator.clipboard.writeText(link).then(function() {
+        alert('Link copiado!');
+    }).catch(function(err) {
+        const tempInput = document.createElement('input');
+        tempInput.value = link;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        alert('Link copiado!');
+    });
 });
 </script>
 
 </body>
 </html>
+
